@@ -19,8 +19,33 @@ export default function CalculatorPage() {
   const [rewardRatio, setRewardRatio] = useState<number | ''>(2)
   const [pair, setPair] = useState<string>('EUR/USD')
   const [availablePairs, setAvailablePairs] = useState(DEFAULT_PAIRS)
+  const [isLoaded, setIsLoaded] = useState(false)
 
+  // Load state from sessionStorage on mount
   useEffect(() => {
+    const savedState = sessionStorage.getItem('calcState')
+    if (savedState) {
+      try {
+        const { timestamp, data } = JSON.parse(savedState)
+        const age = Date.now() - timestamp
+        // 1 hour = 3600000 ms
+        if (age < 3600000) {
+          if (data.balance !== undefined) setBalance(data.balance)
+          if (data.riskMode !== undefined) setRiskMode(data.riskMode)
+          if (data.riskPercent !== undefined) setRiskPercent(data.riskPercent)
+          if (data.riskAmountFixed !== undefined) setRiskAmountFixed(data.riskAmountFixed)
+          if (data.stopLoss !== undefined) setStopLoss(data.stopLoss)
+          if (data.pair !== undefined) setPair(data.pair)
+          if (data.rewardRatio !== undefined) setRewardRatio(data.rewardRatio)
+        } else {
+          sessionStorage.removeItem('calcState')
+        }
+      } catch (e) {
+        console.error('Failed to parse saved state', e)
+      }
+    }
+    setIsLoaded(true)
+
     async function checkUser() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user?.email === 'tennyson.onovwiona@gmail.com') {
@@ -29,6 +54,25 @@ export default function CalculatorPage() {
     }
     checkUser()
   }, [])
+
+  // Save state to sessionStorage on change
+  useEffect(() => {
+    if (!isLoaded) return // Don't save initial default values overwriting storage
+
+    const state = {
+      balance,
+      riskMode,
+      riskPercent,
+      riskAmountFixed,
+      stopLoss,
+      pair,
+      rewardRatio
+    }
+    sessionStorage.setItem('calcState', JSON.stringify({
+      timestamp: Date.now(),
+      data: state
+    }))
+  }, [balance, riskMode, riskPercent, riskAmountFixed, stopLoss, pair, rewardRatio, isLoaded])
 
   const results = useMemo(() => {
     // Treat empty strings as 0 for calculation

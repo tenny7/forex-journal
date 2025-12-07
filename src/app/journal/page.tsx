@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { Plus, Trash2, X } from 'lucide-react'
 import { cn } from '@/utils/cn'
@@ -17,6 +17,7 @@ type Trade = {
     stop_loss: number | null
     pnl: number
     date: string
+    comments?: string
 }
 
 type TradeForm = {
@@ -28,6 +29,7 @@ type TradeForm = {
     stop_loss: number | ''
     pnl: number | ''
     date: string
+    comments: string
 }
 
 const DEFAULT_PAIRS = [
@@ -53,7 +55,8 @@ export default function JournalPage() {
         exit: '',
         stop_loss: '',
         pnl: '',
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        comments: ''
     })
 
     useEffect(() => {
@@ -175,11 +178,31 @@ export default function JournalPage() {
                 exit: '',
                 stop_loss: '',
                 pnl: '',
-                date: new Date().toISOString().split('T')[0]
+                date: new Date().toISOString().split('T')[0],
+                comments: ''
             })
         } catch (err) {
             console.error('Error adding trade:', err)
-            alert('Failed to add trade. Does the "trades" table have a "stop_loss" column?')
+            alert('Failed to add trade. Does the "trades" table have a "comments" column?')
+        }
+    }
+
+    const [viewCommentTrade, setViewCommentTrade] = useState<Trade | null>(null)
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+
+    const handleTouchStart = (trade: Trade) => {
+        longPressTimer.current = setTimeout(() => {
+            if (trade.comments) {
+                setViewCommentTrade(trade)
+                // Optional: Vibrate if device supports it
+                if (navigator.vibrate) navigator.vibrate(50)
+            }
+        }, 600) // 600ms long press
+    }
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current)
         }
     }
 
@@ -219,6 +242,7 @@ export default function JournalPage() {
                                 <th className="px-6 py-4">Entry</th>
                                 <th className="px-6 py-4">Exit</th>
                                 <th className="px-6 py-4 text-right">PnL</th>
+                                <th className="px-6 py-4">Comments</th>
                                 <th className="px-6 py-4"></th>
                             </tr>
                         </thead>
@@ -242,6 +266,9 @@ export default function JournalPage() {
                                     )}>
                                         {trade.pnl >= 0 ? '+' : ''}{trade.pnl}
                                     </td>
+                                    <td className="px-6 py-4 text-xs max-w-xs truncate" title={trade.comments}>
+                                        {trade.comments || '-'}
+                                    </td>
                                     <td className="px-6 py-4 text-right">
                                         <button className="text-slate-500 hover:text-red-400 transition-colors">
                                             <Trash2 className="w-4 h-4" />
@@ -261,7 +288,12 @@ export default function JournalPage() {
                 {/* Mobile View (Cards) */}
                 <div className="md:hidden space-y-4 pb-20">
                     {trades.map((trade) => (
-                        <div key={trade.id} className="glass-panel p-4 rounded-xl space-y-3">
+                        <div
+                            key={trade.id}
+                            className="glass-panel p-4 rounded-xl space-y-3 relative active:scale-[0.98] transition-transform"
+                            onTouchStart={() => handleTouchStart(trade)}
+                            onTouchEnd={handleTouchEnd}
+                        >
                             <div className="flex justify-between items-start">
                                 <div>
                                     <div className="text-white font-bold text-lg">{trade.pair}</div>
@@ -293,6 +325,17 @@ export default function JournalPage() {
                                 </div>
                             </div>
 
+                            {/* Comments for Mobile */}
+                            {trade.comments && (
+                                <div
+                                    onClick={() => setViewCommentTrade(trade)}
+                                    className="text-xs text-blue-400 italic border-t border-white/5 pt-2 flex items-center gap-1 cursor-pointer hover:underline"
+                                >
+                                    <span className="truncate max-w-[200px]">"{trade.comments}"</span>
+                                    <span className="text-[10px] not-italic text-slate-500">(Tap to view)</span>
+                                </div>
+                            )}
+
                             <div className="pt-3 border-t border-white/5 flex justify-between items-center">
                                 <div className="text-slate-400 text-sm">P/L</div>
                                 <div className={cn("font-mono font-bold text-lg",
@@ -310,6 +353,31 @@ export default function JournalPage() {
                     )}
                 </div>
             </div>
+
+            {/* Comment View Modal */}
+            {viewCommentTrade && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="glass-panel w-full max-w-sm rounded-2xl p-6 space-y-4 relative shadow-2xl border-white/10">
+                        <button
+                            onClick={() => setViewCommentTrade(null)}
+                            className="absolute right-4 top-4 text-slate-400 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div>
+                            <h3 className="text-lg font-bold text-white mb-1">Trade Comment</h3>
+                            <p className="text-sm text-slate-400">{viewCommentTrade.pair} • {viewCommentTrade.date}</p>
+                        </div>
+
+                        <div className="bg-slate-950/50 p-4 rounded-xl border border-white/5 max-h-[60vh] overflow-y-auto">
+                            <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                                {viewCommentTrade.comments}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal */}
             {showAddModal && (
@@ -409,6 +477,16 @@ export default function JournalPage() {
                                     value={formData.pnl}
                                     onChange={e => setFormData({ ...formData, pnl: e.target.value === '' ? '' : Number(e.target.value) })}
                                     className="input-glass w-full px-3 py-2 rounded-lg text-white placeholder:text-slate-600"
+                                />
+                            </div>
+
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-xs font-medium text-slate-400">Comments</label>
+                                <textarea
+                                    value={formData.comments}
+                                    onChange={e => setFormData({ ...formData, comments: e.target.value })}
+                                    className="input-glass w-full px-3 py-2 rounded-lg text-white placeholder:text-slate-600 min-h-[80px]"
+                                    placeholder="Trade thoughts..."
                                 />
                             </div>
                         </div>

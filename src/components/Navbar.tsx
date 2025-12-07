@@ -104,7 +104,7 @@ export default function Navbar() {
             </nav>
 
             {/* Mobile Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-white/5 bg-slate-950/90 backdrop-blur-xl pb-safe">
+            <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-white/5 bg-slate-950/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
                 <div className="flex justify-around items-center h-16">
                     {navItems.map((item) => {
                         const isActive = pathname === item.href
