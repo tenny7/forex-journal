@@ -8,6 +8,7 @@ import { cn } from '@/utils/cn'
 
 type Trade = {
     id: string
+    user_id: string
     pair: string
     type: 'BUY' | 'SELL'
     size: number
@@ -39,6 +40,7 @@ export default function JournalPage() {
     const [showAddModal, setShowAddModal] = useState(false)
     const [availablePairs, setAvailablePairs] = useState(DEFAULT_PAIRS)
     const [userEmail, setUserEmail] = useState<string>('')
+    const [userId, setUserId] = useState<string | null>(null)
 
     // Form State
     const [formData, setFormData] = useState<TradeForm>({
@@ -52,45 +54,52 @@ export default function JournalPage() {
     })
 
     useEffect(() => {
-        fetchTrades()
-        fetchUser()
-    }, [])
-
-    async function fetchUser() {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.email) {
-            setUserEmail(user.email)
-            if (user.email === 'tennyson.onovwiona@gmail.com') {
-                setAvailablePairs([...DEFAULT_PAIRS, 'WTI'])
-            }
-        }
-    }
-
-    async function fetchTrades() {
-        try {
+        // Initialize session and fetch data
+        const init = async () => {
             setLoading(true)
-            const { data, error } = await supabase
-                .from('trades')
-                .select('*')
-                .order('date', { ascending: false })
+            const { data: { user } } = await supabase.auth.getUser()
 
-            if (error) {
-                console.error('Error fetching trades:', error)
+            if (user) {
+                setUserId(user.id)
+                setUserEmail(user.email || '')
+
+                if (user.email === 'tennyson.onovwiona@gmail.com') {
+                    setAvailablePairs([...DEFAULT_PAIRS, 'WTI'])
+                }
+
+                // Fetch trades for this user
+                const { data, error } = await supabase
+                    .from('trades')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('date', { ascending: false })
+
+                if (error) {
+                    console.error('Error fetching trades:', error)
+                } else {
+                    setTrades(data || [])
+                }
             } else {
-                setTrades(data || [])
+                setTrades([])
             }
-        } finally {
             setLoading(false)
         }
-    }
+
+        init()
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     async function handleSubmit() {
         try {
+            if (!userId) {
+                alert('You must be signed in to add trades.')
+                return
+            }
             // Basic validation
             if (!formData.pair || !formData.date) return
 
             const payload = {
                 ...formData,
+                user_id: userId,
                 size: Number(formData.size),
                 entry: Number(formData.entry),
                 exit: Number(formData.exit),
@@ -104,7 +113,15 @@ export default function JournalPage() {
             if (error) throw error
 
             setShowAddModal(false)
-            fetchTrades() // Refresh list
+
+            // Refresh list (re-fetch to be safe)
+            const { data } = await supabase
+                .from('trades')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: false })
+
+            setTrades(data || [])
 
             // Reset form (keep date)
             setFormData({
@@ -118,7 +135,7 @@ export default function JournalPage() {
             })
         } catch (err) {
             console.error('Error adding trade:', err)
-            alert('Failed to add trade. Does the "trades" table exist?')
+            alert('Failed to add trade. Does the "trades" table have a "user_id" column?')
         }
     }
 
@@ -131,13 +148,19 @@ export default function JournalPage() {
                         <h1 className="text-3xl font-bold text-white">Trade Journal</h1>
                         <p className="text-slate-400 mt-2">Track your performance and learn from your history.</p>
                     </div>
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        New Trade
-                    </button>
+                    {userId ? (
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                            New Trade
+                        </button>
+                    ) : (
+                        <div className="text-sm text-yellow-400 bg-yellow-400/10 px-4 py-2 rounded-lg border border-yellow-400/20">
+                            Sign in to manage your journal
+                        </div>
+                    )}
                 </div>
 
                 {/* Trade Table */}
@@ -186,7 +209,7 @@ export default function JournalPage() {
                     </table>
                     {!loading && trades.length === 0 && (
                         <div className="p-8 text-center text-slate-500">
-                            No trades recorded yet. Start journaling!
+                            {userId ? "No trades recorded yet. Start journaling!" : "Sign in to see your trades."}
                         </div>
                     )}
                 </div>
@@ -301,3 +324,4 @@ export default function JournalPage() {
         </div>
     )
 }
+
