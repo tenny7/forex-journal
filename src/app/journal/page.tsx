@@ -187,15 +187,15 @@ export default function JournalPage() {
         <div className="min-h-screen p-8 relative">
             <div className="max-w-7xl mx-auto space-y-8">
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-white">Trade Journal</h1>
-                        <p className="text-slate-400 mt-2">Track your performance and learn from your history.</p>
+                        <h1 className="text-2xl md:text-3xl font-bold text-white">Trade Journal</h1>
+                        <p className="text-slate-400 mt-2 text-sm md:text-base">Track your performance and learn from your history.</p>
                     </div>
                     {userId ? (
                         <button
                             onClick={() => setShowAddModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors whitespace-nowrap flex-shrink-0"
                         >
                             <Plus className="w-4 h-4" />
                             New Trade
@@ -207,8 +207,8 @@ export default function JournalPage() {
                     )}
                 </div>
 
-                {/* Trade Table */}
-                <div className="glass-panel rounded-xl overflow-hidden">
+                {/* Desktop View (Table) */}
+                <div className="hidden md:block glass-panel rounded-xl overflow-hidden">
                     <table className="w-full text-left text-sm text-slate-400">
                         <thead className="bg-white/5 text-slate-200 font-medium">
                             <tr>
@@ -254,6 +254,58 @@ export default function JournalPage() {
                     {!loading && trades.length === 0 && (
                         <div className="p-8 text-center text-slate-500">
                             {userId ? "No trades recorded yet. Start journaling!" : "Sign in to see your trades."}
+                        </div>
+                    )}
+                </div>
+
+                {/* Mobile View (Cards) */}
+                <div className="md:hidden space-y-4 pb-20">
+                    {trades.map((trade) => (
+                        <div key={trade.id} className="glass-panel p-4 rounded-xl space-y-3">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="text-white font-bold text-lg">{trade.pair}</div>
+                                    <div className="text-slate-500 text-xs font-mono">{trade.date}</div>
+                                </div>
+                                <span className={cn("px-2 py-1 rounded text-xs font-bold",
+                                    trade.type === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                )}>
+                                    {trade.type}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="space-y-0.5">
+                                    <div className="text-slate-500 text-xs">Entry</div>
+                                    <div className="font-mono text-slate-300">{trade.entry}</div>
+                                </div>
+                                <div className="space-y-0.5">
+                                    <div className="text-slate-500 text-xs">Exit</div>
+                                    <div className="font-mono text-slate-300">{trade.exit}</div>
+                                </div>
+                                <div className="space-y-0.5">
+                                    <div className="text-slate-500 text-xs">Size</div>
+                                    <div className="font-mono text-slate-300">{trade.size} Lots</div>
+                                </div>
+                                <div className="space-y-0.5">
+                                    <div className="text-slate-500 text-xs">Stop Loss</div>
+                                    <div className="font-mono text-slate-300">{trade.stop_loss || '-'}</div>
+                                </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-white/5 flex justify-between items-center">
+                                <div className="text-slate-400 text-sm">P/L</div>
+                                <div className={cn("font-mono font-bold text-lg",
+                                    trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                                )}>
+                                    {trade.pnl >= 0 ? '+' : ''}{trade.pnl}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {!loading && trades.length === 0 && (
+                        <div className="p-8 text-center text-slate-500 glass-panel rounded-xl">
+                            {userId ? "No trades recorded yet." : "Sign in to see your trades."}
                         </div>
                     )}
                 </div>

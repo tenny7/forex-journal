@@ -263,6 +263,8 @@ export default function CalculatorPage() {
         </div>
       </div>
 
+
+
       {/* Explanation Section */}
       <div className="max-w-4xl mx-auto space-y-12">
         {/* Lot Types Cards */}
