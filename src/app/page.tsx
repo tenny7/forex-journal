@@ -16,6 +16,7 @@ export default function CalculatorPage() {
   const [riskPercent, setRiskPercent] = useState<number>(1)
   const [riskAmountFixed, setRiskAmountFixed] = useState<number | ''>('')
   const [stopLoss, setStopLoss] = useState<number | ''>('')
+  const [rewardRatio, setRewardRatio] = useState<number | ''>(2)
   const [pair, setPair] = useState<string>('EUR/USD')
   const [availablePairs, setAvailablePairs] = useState(DEFAULT_PAIRS)
 
@@ -34,6 +35,7 @@ export default function CalculatorPage() {
     const balVal = balance === '' ? 0 : balance
     const riskFixedVal = riskAmountFixed === '' ? 0 : riskAmountFixed
     const slushVal = stopLoss === '' ? 0 : stopLoss
+    const rrVal = rewardRatio === '' ? 0 : rewardRatio
 
     let riskAmt = 0
     if (riskMode === 'percent') {
@@ -78,9 +80,11 @@ export default function CalculatorPage() {
       units: isFinite(units) ? units : 0,
       pipValue: pipValuePerStandardLot,
       lotType,
-      lotTypeColor
+      lotTypeColor,
+      potentialProfit: riskAmt * rrVal,
+      takeProfitPips: slushVal * rrVal
     }
-  }, [balance, riskMode, riskPercent, riskAmountFixed, stopLoss, pair])
+  }, [balance, riskMode, riskPercent, riskAmountFixed, stopLoss, pair, rewardRatio])
 
   return (
     <div className="min-h-[calc(100vh-80px)] p-4 pb-20">
@@ -173,7 +177,8 @@ export default function CalculatorPage() {
                 )}
               </div>
 
-              {/* Stop Loss & Pair */}
+
+              {/* Stop Loss, Pair & Reward Ratio */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-300">Stop Loss (Pips)</label>
@@ -194,6 +199,19 @@ export default function CalculatorPage() {
                   >
                     {availablePairs.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <label className="text-sm font-medium text-slate-300">Risk : Reward Ratio (1 : X)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">1:</span>
+                    <input
+                      type="number"
+                      placeholder="2"
+                      value={rewardRatio}
+                      onChange={(e) => setRewardRatio(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="input-glass w-full pl-8 px-4 py-3 rounded-xl text-white font-mono placeholder:text-slate-600"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -235,21 +253,22 @@ export default function CalculatorPage() {
                   <div className="flex justify-between items-center py-3 border-b border-white/5">
                     <span className="text-slate-400">Risk Amount</span>
                     <span className="text-xl font-mono text-red-400">
-                      ${results.riskAmount.toFixed(2)}
+                      -${results.riskAmount.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-3 border-b border-white/5">
-                    <span className="text-slate-400">Units</span>
+                    <span className="text-slate-400">Potential Profit</span>
+                    <span className="text-xl font-mono text-green-400">
+                      +${results.potentialProfit.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-white/5">
+                    <span className="text-slate-400">Take Profit Target</span>
                     <span className="text-xl font-mono text-white">
-                      {Math.round(results.units).toLocaleString()}
+                      {results.takeProfitPips} <span className="text-sm text-slate-500">pips</span>
                     </span>
                   </div>
-                  <div className="flex justify-between items-center py-3 border-b border-white/5">
-                    <span className="text-slate-400">Pip Value (Std)</span>
-                    <span className="text-xl font-mono text-slate-300">
-                      ~${results.pipValue}
-                    </span>
-                  </div>
+
                 </div>
               </div>
 
