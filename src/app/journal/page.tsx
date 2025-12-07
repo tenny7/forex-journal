@@ -14,6 +14,7 @@ type Trade = {
     size: number
     entry: number
     exit: number
+    stop_loss: number | null
     pnl: number
     date: string
 }
@@ -24,6 +25,7 @@ type TradeForm = {
     size: number | ''
     entry: number | ''
     exit: number | ''
+    stop_loss: number | ''
     pnl: number | ''
     date: string
 }
@@ -49,6 +51,7 @@ export default function JournalPage() {
         size: '',
         entry: '',
         exit: '',
+        stop_loss: '',
         pnl: '',
         date: new Date().toISOString().split('T')[0]
     })
@@ -88,6 +91,45 @@ export default function JournalPage() {
         init()
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Auto-Calculate PnL
+    useEffect(() => {
+        const { pair, type, size, entry, exit } = formData
+
+        // Only calculate if all necessary fields have valid numbers
+        if (size !== '' && entry !== '' && exit !== '') {
+            const s = Number(size)
+            const e = Number(entry)
+            const x = Number(exit)
+
+            if (s > 0 && e > 0 && x > 0) {
+                let diff = 0
+                if (type === 'BUY') {
+                    diff = x - e
+                } else {
+                    diff = e - x
+                }
+
+                let contractSize = 100000 // Standard FX
+                if (pair === 'XAU/USD') contractSize = 100 // Gold
+                if (pair === 'WTI') contractSize = 1000 // Oil (typical)
+
+                // Simple Profit Calc: Diff * Size * Contract
+                // Note: This assumes quote currency is USD or close to it for estimation.
+                // For USDJPY it would be in JPY, requiring division.
+                // We'll apply a simple JPY fix for now.
+                let profit = diff * s * contractSize
+
+                if (pair.includes('JPY')) {
+                    // If it's JPY, the result is in JPY. Convert to USD roughly using Exit price if available.
+                    // Or simply: Profit in JPY / Current Rate. We use Exit as proxy for rate.
+                    profit = profit / x
+                }
+
+                setFormData(prev => ({ ...prev, pnl: parseFloat(profit.toFixed(2)) }))
+            }
+        }
+    }, [formData.pair, formData.type, formData.size, formData.entry, formData.exit])
+
     async function handleSubmit() {
         try {
             if (!userId) {
@@ -103,6 +145,7 @@ export default function JournalPage() {
                 size: Number(formData.size),
                 entry: Number(formData.entry),
                 exit: Number(formData.exit),
+                stop_loss: formData.stop_loss === '' ? null : Number(formData.stop_loss),
                 pnl: Number(formData.pnl)
             }
 
@@ -130,12 +173,13 @@ export default function JournalPage() {
                 size: '',
                 entry: '',
                 exit: '',
+                stop_loss: '',
                 pnl: '',
                 date: new Date().toISOString().split('T')[0]
             })
         } catch (err) {
             console.error('Error adding trade:', err)
-            alert('Failed to add trade. Does the "trades" table have a "user_id" column?')
+            alert('Failed to add trade. Does the "trades" table have a "stop_loss" column?')
         }
     }
 
@@ -272,6 +316,7 @@ export default function JournalPage() {
                                     className="input-glass w-full px-3 py-2 rounded-lg text-white placeholder:text-slate-600"
                                 />
                             </div>
+
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-slate-400">Entry Price</label>
                                 <input
@@ -292,8 +337,20 @@ export default function JournalPage() {
                                     className="input-glass w-full px-3 py-2 rounded-lg text-white placeholder:text-slate-600"
                                 />
                             </div>
-                            <div className="col-span-2 space-y-2">
-                                <label className="text-xs font-medium text-slate-400">P/L ($)</label>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-slate-400">Stop Loss (Optional)</label>
+                                <input
+                                    type="number"
+                                    placeholder="0.00000"
+                                    value={formData.stop_loss}
+                                    onChange={e => setFormData({ ...formData, stop_loss: e.target.value === '' ? '' : Number(e.target.value) })}
+                                    className="input-glass w-full px-3 py-2 rounded-lg text-white placeholder:text-slate-600"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-slate-400">P/L ($) - Auto</label>
                                 <input
                                     type="number"
                                     placeholder="0.00"
